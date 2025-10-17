@@ -14,26 +14,34 @@ tags: [installation, getting started]
 ### Installation
 
 1. Clone the repository and change to the FirmwareDroid directory
+
     ```bash
     git clone --recurse-submodules https://github.com/FirmwareDroid/FirmwareDroid.git
     
     cd FirmwareDroid
     ```
-
-2. Install python packages for the setup:
+   
+2. Optionally, create a Python virtual environment
 
     ```bash
-    pip3 install jinja2
+    python3 -m venv venv
+    source venv/bin/activate
     ```
 
-3. Run the setup script, which will create a `.env` file with default settings. You can edit this file later to change settings like passwords or ports.:
+3. Install python packages for the setup:
+
+    ```bash
+    pip3 install jinja2 cryptography
+    ```
+
+4. Run the setup script, which will create a `.env` file with default settings. You can edit this file later to change settings like passwords or ports.
 
     ```bash
     python3 ./setup.py
     ```
    
 #### Option 1: Just Run (for users)
-4. Start the containers
+1. Start the containers
 
     ```bash
     chown -R $(id -u):$(id -g) ./blob_storage
@@ -44,14 +52,14 @@ tags: [installation, getting started]
 
 
 #### Option 2: Build Source (for developers)
-4. Build the docker base images (takes some time).
+1. Build the docker base images (takes some time).
 
     ```bash
     chmod +x ./docker/build_docker_images.sh
     ./docker/build_docker_images.sh
     ```
 
-5. Set correct access rights for the blob storage and start the containers
+2. Set correct access rights for the blob storage and start the containers
 
     ```bash
     chown -R $(id -u):$(id -g) ./blob_storage
@@ -61,9 +69,10 @@ tags: [installation, getting started]
     Wait until the logscreen stops moving (takes usually 2 to 5 minutes).
 
 ### Usage
-6. Open the browser under [https://fmd.localhost](https://fmd.localhost). By default, a self-signed certificates is used, and you will encounter a TLS warning.
 
-7. Log-into the application. Password and username can be found in the `.env` file within the root directory of the server.
+1. Open the browser under [https://fmd.localhost](https://fmd.localhost). By default, a self-signed certificates is used, and you will encounter a TLS warning.
+
+2. Log-into the application. Password and username can be found in the `.env` file within the root directory of the server.
 
     ```bash
     cat .env
@@ -73,7 +82,7 @@ tags: [installation, getting started]
     ...
     ```
 
-8. After log-in (via https://fmd.localhost/admin), you can explore the following routes:
+3. After log-in (via https://fmd.localhost/admin), you can explore the following routes:
    - [Frontend (https://fmd.localhost/)](https://fmd.localhost/)
    - [GraphQL API (https://fmd.localhost/graphql/)](https://fmd.localhost/graphql/)
    - [User-Management (https://fmd.localhost/admin/)](https://fmd.localhost/admin/)
