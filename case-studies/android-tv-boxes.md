@@ -8,14 +8,18 @@ badge: Malware & Supply Chain
 date: 2026-10-01
 read_time: 8 min read
 toc: true
-published: false
+published: true
+authors: Thomas Sutter and Tobias Leu
+mermaid: true
 ---
 
 ## Overview
 
-Over the past few years, inexpensive Android-powered streaming boxes—often built around AllWinner (e.g., H616, H313) or Rockchip (e.g., RK3328) System-on-Chips (SoCs)—have proliferated across international e-commerce platforms. Marketed as cheap media centers capable of 4K streaming, many of these devices lack Google Play Protect certification and arrive with customized Android Open Source Project (AOSP) firmware.
+Over the past few years, inexpensive Android-powered streaming boxes—frequently powered by AllWinner (e.g., H616, H313) or Rockchip (e.g., RK3328) System-on-Chips (SoCs)—have proliferated across international e-commerce platforms. Marketed as low-cost media centers capable of 4K streaming, many of these devices lack Google Play Protect certification and ship with customized Android Open Source Project (AOSP) firmware builds.
 
-In this case study, we demonstrate how **FirmwareDroid (FMD)** was used to acquire, extract, and statically inspect off-the-shelf Android TV box firmware images. The investigation revealed persistent, factory-installed malware families (including variants of the "Badbox" botnet and click-fraud syndicates), trojanized ADB daemons, and background services pre-configured to execute arbitrary remote commands without user awareness.
+As part of a broader research initiative, we investigated budget IoT streaming hardware for security vulnerabilities and factory-installed malware. A primary focal point was **residential proxy networks**, which recent industry reports have repeatedly identified embedded within inexpensive Android TV appliances. 
+
+In this case study, we document the physical teardown, hardware-level firmware extraction, and subsequent static analysis of two off-the-shelf Android TV set-top boxes using **FirmwareDroid (FMD)**.
 
 ---
 
@@ -37,148 +41,152 @@ Off-brand Android TV devices operate within an opaque global supply chain where 
         Receives pre-compromised hardware out of the box
 ```
 
-Because these devices are not subject to CTS (Compatibility Test Suite) or Google Mobile Services (GMS) licensing agreements, there is zero mandatory pre-market vetting. Malicious actors leverage this lack of oversight to embed monetization malware directly into the read-only `/system` partition prior to physical distribution.
+Because these devices are not subject to Google's Compatibility Test Suite (CTS) or Google Mobile Services (GMS) licensing agreements, they undergo zero mandatory pre-market vetting. Threat actors exploit this lack of oversight to embed monetization malware, click-fraud frameworks, or residential proxy nodes directly into the read-only `/system` partition prior to commercial packaging and distribution.
 
 ---
 
-## Ingestion & Extraction with FMD
+## Background & Motivation
 
-To inspect the device without relying solely on volatile runtime network sniffing, we dumped and imported the raw firmware image into FirmwareDroid.
+Our initial methodology attempted to dynamically monitor and analyze network traffic emitted by the set-top boxes, looking for anomalous request-response flows indicative of proxy or botnet activity. However, this approach presented two fundamental limitations:
 
-### 1. Ingesting the Firmware Archive
+1. **Encrypted Payloads without TLS Interception:** Without breaking TLS connections, network analysis was strictly confined to transport metadata, connection targets, and DNS queries. While metadata provides useful heuristics, inspecting the exact operations and payloads of suspicious daemons requires deeper payload visibility.
+2. **Non-Deterministic and Delayed Activation:** Residential proxy clients and click-fraud malware rarely trigger immediately upon first boot. Payloads routinely implement sleep timers, require external Command-and-Control (C2) activation signals, or wait for specific user interactions before launching background threads.
 
-The firmware image (`T95_H616_Android10_factory.img`) was imported into FMD via the GraphQL API:
+To circumvent these limitations, we pivoted to **hardware-based firmware extraction** followed by comprehensive static analysis using FirmwareDroid.
 
-```graphql
-mutation ImportTvFirmware {
-  createFirmwareJob(
-    firmwarePath: "/storage/firmware/t95_allwinner_h616.img"
-    vendor: "AllWinner-T95"
-    version: "Android 10.0"
-  ) {
-    jobId
-    status
-  }
-}
+---
+
+## Hardware Inspection & Opening the Devices
+
+For this study, we purchased two popular budget set-top boxes from Temu:
+- **Wudung Android Mini TV Box**
+- **XC99 Max Android TV Box**
+
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.5rem; margin: 1.8rem 0;">
+  <figure style="margin: 0;">
+    <img src="{{ '/commons/case_study_tv_boxes_2026/wudung_whole.jpeg' | relative_url }}" alt="Wudung Android Mini TV Box" style="width: 100%; height: 260px; object-fit: cover; border-radius: 8px; border: 1px solid var(--line);">
+    <figcaption style="font-size: 0.8rem; color: var(--muted); text-align: center; margin-top: 0.5rem; font-family: var(--mono);">Wudung Android Mini TV Box</figcaption>
+  </figure>
+  <figure style="margin: 0;">
+    <img src="{{ '/commons/case_study_tv_boxes_2026/XC99_whole.jpeg' | relative_url }}" alt="XC99 Max Android TV Box" style="width: 100%; height: 260px; object-fit: cover; border-radius: 8px; border: 1px solid var(--line);">
+    <figcaption style="font-size: 0.8rem; color: var(--muted); text-align: center; margin-top: 0.5rem; font-family: var(--mono);">XC99 Max Android TV Box</figcaption>
+  </figure>
+</div>
+
+Opening both enclosures revealed accessible **UART (Universal Asynchronous Receiver-Transmitter)** interfaces. While common on development and reference boards, production consumer hardware frequently has UART test pads removed, unpopulated, or disabled at the silicon level. 
+
+Fortunately, both boards exposed unpopulated pin headers with active serial logging enabled by default, granting direct access to the device bootloaders.
+
+---
+
+## Firmware Extraction
+
+### 1. XC99 Max Android TV Box: TFTP over Ethernet
+
+Connecting to the UART interface of the XC99 Max allowed us to interrupt the boot sequence and enter the **U-Boot** bootloader environment. As is characteristic of white-label embedded hardware, the vendor relied on an unmaintained U-Boot fork dating back to 2014.
+
+<figure style="margin: 1.8rem 0;">
+  <img src="{{ '/commons/case_study_tv_boxes_2026/XC99_open.jpeg' | relative_url }}" alt="XC99 Max mainboard opened" style="width: 100%; max-height: 420px; object-fit: cover; border-radius: 8px; border: 1px solid var(--line);">
+  <figcaption style="font-size: 0.8rem; color: var(--muted); text-align: center; margin-top: 0.5rem; font-family: var(--mono);">XC99 Max mainboard featuring SoC, eMMC flash, UART test pads, and 100M Ethernet port</figcaption>
+</figure>
+
+The XC99 Max board offered several potential extraction avenues. We selected the onboard Ethernet interface, leveraging U-Boot's built-in TFTP client:
+
+- **Chunk Size Constraints:** While standard TFTP can support transfers up to 32&nbsp;MB per session, the outdated bootloader implementation consistently crashed when handling transfers larger than 16&nbsp;MB.
+- **RAM Allocation:** We identified a contiguous, unallocated 256&nbsp;MB segment in device RAM to stage data copied from flash memory before transmitting it to our TFTP host.
+- **Transfer Strategy:** For an approximately 8&nbsp;GB total flash image, the firmware had to be dumped in 512 discrete 16&nbsp;MB chunks across multiple iterations.
+
+The transfer sequence proceeded as follows:
+1. Copy 256&nbsp;MB from eMMC flash memory to RAM using the U-Boot `mmc read` command.
+2. Push the data to the host workstation in sixteen consecutive 16&nbsp;MB TFTP packets (`tftpput`).
+3. Repeat across subsequent eMMC block offsets until the entire storage space was dumped.
+4. Concatenate and verify the chunks on the host machine.
+
+Because manual orchestration would have taken hours, we automated the interaction using a Minicom expect script:
+
+```bash
+print "Synchronizing with U-Boot..."
+send ""
+expect "fastboot#"
+
+print "Loading MMC chunk 1/32 into RAM..."
+send "mmc read 0 0x10000000 0x0 0x080000"
+expect "fastboot#"
+
+print "Uploading sub-chunk 1 via TFTP..."
+send "tftpput 0x10000000 0x1000000 /tftpboot/mmc_001.bin"
+expect "fastboot#"
+
+print "Uploading sub-chunk 2 via TFTP..."
+send "tftpput 0x11000000 0x1000000 /tftpboot/mmc_002.bin"
+expect "fastboot#"
+# ... sequence continues through mmc_512.bin ...
 ```
 
-### 2. Multi-Stage Partition Extraction
-
-FirmwareDroid's worker queue dispatched extraction tools configured for AllWinner sparse and raw partition layouts:
-- **`imgpatchtools` & `unblob`**: Unpacked the proprietary AllWinner image container into constituent partition dumps (`boot.img`, `system.img`, `vendor.img`).
-- **`e2tools` & sparse image unpackers**: Mounted and traversed the `ext4` filesystem of `system.img`.
-- **Application Indexer**: Discovered **142 pre-installed Android applications (`.apk`)** and 38 system daemons located under `/system/app/`, `/system/priv-app/`, and `/system/bin/`.
-
-Every file was indexed in MongoDB with its SHA-256 hash, TLSH fuzzy hash, size, and partition path.
+Due to memory leak bugs in the 2014 U-Boot codebase, the bootloader occasionally crashed every 20–30 chunks, requiring a power cycle and script resumption at the last committed offset. Within approximately two hours, all 512 raw chunks were retrieved and reassembled into a valid 8&nbsp;GB raw disk image.
 
 ---
 
-## Key Static Analysis Findings
+### 2. Wudung Android Mini TV Box: Root Shell & USB Dump
 
-Once extraction completed, FMD's worker fleet automatically queued the extracted APKs through integrated static scanners, including **APKiD**, **MobSFScan**, and **AndroGuard**.
+The Wudung Mini TV Box presented a substantially smaller form factor with fewer physical interfaces. Crucially, it lacked an RJ-45 Ethernet port.
 
-### 1. The Trojanized ADB Daemon (`adb_service`)
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.5rem; margin: 1.8rem 0;">
+  <figure style="margin: 0;">
+    <img src="{{ '/commons/case_study_tv_boxes_2026/wudung_open_top.jpeg' | relative_url }}" alt="Wudung board - top view" style="width: 100%; height: 260px; object-fit: cover; border-radius: 8px; border: 1px solid var(--line);">
+    <figcaption style="font-size: 0.8rem; color: var(--muted); text-align: center; margin-top: 0.5rem; font-family: var(--mono);">Wudung board (top view with Wi-Fi antenna and USB)</figcaption>
+  </figure>
+  <figure style="margin: 0;">
+    <img src="{{ '/commons/case_study_tv_boxes_2026/wudung_open_bottom.jpeg' | relative_url }}" alt="Wudung board - bottom view" style="width: 100%; height: 260px; object-fit: cover; border-radius: 8px; border: 1px solid var(--line);">
+    <figcaption style="font-size: 0.8rem; color: var(--muted); text-align: center; margin-top: 0.5rem; font-family: var(--mono);">Wudung board (bottom view with SoC and flash storage)</figcaption>
+  </figure>
+</div>
 
-While inspecting native binaries extracted from `/system/bin/`, FMD identified an anomalous binary named `test_server` alongside a modified `adbd`:
+While we could access U-Boot over UART, initializing the onboard Wi-Fi chip without proprietary firmware blobs in the pre-boot environment proved impractical.
 
-- **Network Listener**: Listened on TCP port `21441` exposed over the local network and public IP.
-- **Unauthenticated Shell**: Bypassed standard Android ADB USB debugging authentication (`adb_keys` verification). Any remote host connecting to port `21441` received root shell execution immediately.
+Instead, we leveraged the bootloader to alter the kernel boot arguments, appending `init=/bin/sh` to drop directly into an unauthenticated root shell upon kernel initialization. Once inside the embedded Linux environment:
 
-### 2. Pre-Installed Click-Fraud Payload (`CoreService.apk`)
+1. We inserted an external USB drive into the box's single USB 2.0 port.
+2. Mounted the external filesystem under `/mnt/usb`.
+3. Executed a direct raw copy of the internal storage block device using `dd`:
 
-Located in `/system/priv-app/CoreService/CoreService.apk`, this application posed as an innocent system update helper (`com.android.core.service`), but analysis revealed signature characteristics of the **Peachpit** ad-fraud family:
+```bash
+dd if=/dev/block/mmcblk0 of=/mnt/usb/wudung_firmware_raw.img bs=4M status=progress
+```
 
-| Metric | Observation | Risk Severity |
-| :--- | :--- | :--- |
-| **Location** | `/system/priv-app/CoreService/` | Elevated system privilege |
-| **Certificate** | Self-signed test key (`Android Debug`) | Untrusted provenance |
-| **Permissions** | `SYSTEM_ALERT_WINDOW`, `INTERNET`, `WAKE_LOCK`, `RECEIVE_BOOT_COMPLETED` | High risk |
-| **APKiD Profile** | Custom DEX packer with XOR string encryption | Obfuscation detected |
-| **Background Ops** | Headless WebView rendering hidden ad slots | Active ad fraud |
+This extraction completed in under 10 minutes—proving substantially faster, simpler, and more reliable than TFTP over Ethernet.
+
+---
+
+## Static Analysis with FirmwareDroid
+
+Once the raw flash images were reconstructed, we ingested both images into **FirmwareDroid** using its automated pipeline:
 
 ```mermaid
 flowchart LR
-    A["Boot Completed"] --> B["CoreService launches hidden background WebView"]
-    B --> C["Fetches C2 Campaign Config: domain.xyz/task.json"]
-    C --> D["Loads Ad Scripts & Simulates Finger Clicks"]
-    D --> E["Generates Fraudulent Impression Revenue"]
+    A["Raw Flash Image<br>(mmcblk0.img)"] --> B["FMD Ingestion Worker"]
+    B --> C["Partition Unpacking<br>(unblob / imgpatchtools)"]
+    C --> D["File Inventory & Hashing<br>(SHA-256 / TLSH)"]
+    D --> E["Static Analysis Triage<br>(MobSF / APKiD / AndroGuard)"]
 ```
 
-### 3. Privileged Signature Permissions
+### 1. Partition Disassembly and Inventory
+FirmwareDroid unpacked the partition table, locating the sparse `system.img` and `vendor.img` containers. Traversal of the filesystem exposed:
+- **142 pre-installed Android packages (`.apk`)** across `/system/app/` and `/system/priv-app/`.
+- **38 custom native binaries and daemons** residing under `/system/bin/` and `/vendor/bin/`.
 
-Because `CoreService.apk` was installed in `/system/priv-app/`, the Android framework automatically granted all declared signature-or-system permissions at boot time without user interaction or runtime permission dialogs. This allowed the malware to:
-1. Prevent the device from sleeping (`WAKE_LOCK`).
-2. Draw invisible overlays to capture coordinates (`SYSTEM_ALERT_WINDOW`).
-3. Download secondary native `.so` payloads directly to `/data/data/com.android.core.service/files/` and execute them dynamically via `dlopen`.
+### 2. High-Severity Findings
+
+FMD's integrated static analysis engines highlighted several critical security risks:
+
+RESULTS TO BE RELEASED SOON: The detailed findings, including specific package names, hashes, and behavioral analysis of the discovered malware components, will be published soon.
 
 ---
 
-## Querying Results in FirmwareDroid
+## Limitations & Future Work
 
-Researchers can query the exact findings from this case study directly through FMD's GraphQL interface:
+While our static extraction pipeline successfully recovered full, byte-accurate firmware images from both TV set-top boxes, several methodological limitations remain:
 
-```graphql
-query GetTvBoxMalwareReports {
-  firmware(vendor: "AllWinner-T95") {
-    totalApks
-    applications(filter: { packageName: "com.android.core.service" }) {
-      packageName
-      sha256
-      systemPrivileged
-      analysisReports {
-        scannerName
-        scannerVersion
-        findings {
-          severity
-          title
-          description
-        }
-      }
-    }
-  }
-}
-```
-
-**Representative JSON Response:**
-
-```json
-{
-  "data": {
-    "firmware": [
-      {
-        "totalApks": 142,
-        "applications": [
-          {
-            "packageName": "com.android.core.service",
-            "sha256": "3e8b01c45f47d9b9a67a030f...",
-            "systemPrivileged": true,
-            "analysisReports": [
-              {
-                "scannerName": "MobSFScan",
-                "scannerVersion": "0.3.5",
-                "findings": [
-                  {
-                    "severity": "HIGH",
-                    "title": "Hidden Background WebView Ad Simulation",
-                    "description": "Component renders zero-dimension WebViews fetching external JavaScript."
-                  }
-                ]
-              }
-            ]
-          }
-        ]
-      }
-    ]
-  }
-}
-```
-
----
-
-## Lessons Learned & Recommendations
-
-This case study highlights the critical need for automated firmware analysis before deploying or trusting consumer IoT hardware:
-
-1. **Factory ROMs Cannot Be Trusted by Default**: Low-cost supply chains frequently outsource firmware integration to third parties who monetize hardware by pre-bundling click-fraud botnets.
-2. **Automated Partition Extraction is Essential**: Scanning user-installed apps via Google Play or MDM is insufficient; firmware-level threats reside permanently in `/system` and survive factory resets.
-3. **Multi-Scanner Aggregation Yields Rapid Discovery**: Combining unpackers with APK packers (APKiD), vulnerability patterns (MobSFScan), and manifest parsers (AndroGuard) enabled full triage of the firmware image within 15 minutes of ingestion.
+1. **Over-The-Air (OTA) Delivery Vectors:** Static inspection captures the factory ROM state. Malicious components delivered downstream via scheduled manufacturer OTA updates or dynamic in-app updates require periodic differential analysis over time.
+2. **Dynamic TLS Interception:** Gaining end-to-end visibility into live C2 communication requires transparent TLS proxying. Automated patching of Android network security configurations (`network_security_config.xml`) directly within FMD is planned to facilitate automated MITM interception.
+3. **Large-Scale Multi-Device Testbeds:** Expanding this empirical study to hundreds of low-cost streaming devices requires automating hardware dumping via multiplexed serial testbeds.

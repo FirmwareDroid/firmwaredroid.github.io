@@ -1,58 +1,37 @@
 <!-- mermaid-js loader -->
-<script type="text/javascript">
-  (function () {
-    function updateMermaid(event) {
-      if (event.source === window && event.data && event.data.direction === ModeToggle.ID) {
-        const mode = event.data.message;
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.min.js" crossorigin="anonymous"></script>
+<script>
+  async function initMermaid() {
+    const codeBlocks = document.querySelectorAll('pre > code.language-mermaid');
+    if (!codeBlocks.length || typeof mermaid === 'undefined') return;
 
-        if (typeof mermaid === 'undefined') {
-          return;
-        }
-
-        let expectedTheme = mode === ModeToggle.DARK_MODE ? 'dark' : 'default';
-        let config = { theme: expectedTheme };
-
-        /* Re-render the SVG › <https://github.com/mermaid-js/mermaid/issues/311#issuecomment-332557344> */
-        $('.mermaid').each(function () {
-          let svgCode = $(this).prev().children().html();
-          $(this).removeAttr('data-processed');
-          $(this).html(svgCode);
-        });
-
-        mermaid.initialize(config);
-        mermaid.init(undefined, '.mermaid');
-      }
-    }
-
-    let initTheme = 'default';
-    const html = document.documentElement;
-
-    if (
-      (html.hasAttribute('data-mode') && html.getAttribute('data-mode') === 'dark') ||
-      (!html.hasAttribute('data-mode') && window.matchMedia('(prefers-color-scheme: dark)').matches)
-    ) {
-      initTheme = 'dark';
-    }
-
-    let mermaidConf = {
-      theme: initTheme /* <default|dark|forest|neutral> */
-    };
-
-    /* Create mermaid tag */
-    document.querySelectorAll('pre>code.language-mermaid').forEach((elem) => {
-      const svgCode = elem.textContent;
-      const backup = elem.parentElement;
-      backup.classList.add('unloaded');
-      /* create mermaid node */
-      let mermaid = document.createElement('pre');
-      mermaid.classList.add('mermaid');
-      const text = document.createTextNode(svgCode);
-      mermaid.appendChild(text);
-      backup.after(mermaid);
+    codeBlocks.forEach(function (code) {
+      const pre = code.parentElement;
+      const diagram = document.createElement('div');
+      diagram.className = 'mermaid';
+      diagram.textContent = code.textContent;
+      pre.parentNode.replaceChild(diagram, pre);
     });
 
-    mermaid.initialize(mermaidConf);
+    mermaid.initialize({
+      startOnLoad: false,
+      theme: 'default',
+      securityLevel: 'loose',
+      fontFamily: 'Inter, sans-serif'
+    });
 
-    window.addEventListener('message', updateMermaid);
-  })();
+    try {
+      await mermaid.run({
+        querySelector: '.mermaid'
+      });
+    } catch (err) {
+      console.error('Mermaid render error:', err);
+    }
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initMermaid);
+  } else {
+    initMermaid();
+  }
 </script>

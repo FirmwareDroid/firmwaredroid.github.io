@@ -9,6 +9,7 @@ date: 2026-10-01
 read_time: 6 min read
 toc: true
 published: false
+mermaid: true
 ---
 
 ## Motivation

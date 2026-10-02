@@ -9,8 +9,8 @@
   tags: [TV Boxes, AllWinner, Trojan, Click-Fraud, Unblob, MobSF]
   date: October 1, 2026
   read_time: 8 min read
-  published: false
-  status: "Publication Forthcoming"
+  published: true
+  status: "Published"
 
 - id: scanning-single-app
   title: Scanning a Single App with FMD
