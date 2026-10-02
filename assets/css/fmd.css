@@ -302,4 +302,53 @@ img { max-width: 100%; height: auto; }
 .scroll-to-top { position: fixed; z-index: 40; right: 1.2rem; bottom: 1.2rem; width: 42px; height: 42px; border: 0; border-radius: 7px; background: var(--green); color: var(--ink); opacity: 0; visibility: hidden; transform: translateY(8px); transition: .2s; cursor: pointer; }
 .scroll-to-top.visible { opacity: 1; visibility: visible; transform: none; }
 
-@media (max-width: 900px) {\n  .nav-toggle { display: block; }\n  .nav-links { display: none; position: absolute; top: 72px; left: 0; right: 0; background: var(--ink); padding: 1.2rem 1.5rem; flex-direction: column; align-items: stretch; border-bottom: 1px solid #263649; }\n  .nav-links.is-open { display: flex; }\n  .hero-section { min-height: auto; padding: 5rem 0; }\n  .hero-layout, .two-column { grid-template-columns: 1fr; gap: 2rem; }\n  .quickstart-card { transform: none; }\n  .workflow-grid { grid-template-columns: 1fr 1fr; }\n  .workflow-grid article:last-child { grid-column: span 2; }\n  .architecture-bar { flex-wrap: wrap; justify-content: flex-start; }\n  .capability-grid { grid-template-columns: 1fr 1fr; }\n  .capability-grid article { border-bottom: 1px solid var(--line); }\n  .capability-grid article:nth-child(2) { border-right: 0; }\n  .demo-frame { grid-template-columns: 1fr; }\n  .case-studies-grid { grid-template-columns: 1fr; }\n  .hub-study-card { grid-template-columns: 1fr; gap: 1.2rem; }\n  .hub-study-action { align-self: flex-start; }\n  .article-grid { grid-template-columns: 1fr; gap: 1rem; }\n  .doc-toc { position: static; grid-row: 1; border-left: 0; border-bottom: 1px solid var(--line); padding: 0 0 1.5rem; max-height: none; }\n  .docs-hero-inner { align-items: start; flex-direction: column; }\n  .footer-inner { grid-template-columns: 1fr; text-align: center; justify-items: center; }\n}\n\n@media (max-width: 650px) {\n  .container { width: min(100% - 2.2rem, 1152px); }\n  .section { padding: 5rem 0; }\n  .hero-copy h1 { font-size: 3rem; }\n  .section-intro { grid-template-columns: 38px 1fr; }\n  .workflow-grid, .capability-grid, .featured-docs, .resource-grid, .docs-card-grid, .case-studies-grid { grid-template-columns: 1fr; }\n  .workflow-grid article:last-child { grid-column: auto; }\n  .capability-grid article { border-right: 0; }\n  .architecture-bar { flex-direction: column; align-items: flex-start; }\n  .architecture-bar > i { display: none; }\n  .quickstart-steps { grid-template-columns: 1fr; }\n  .quickstart-footer { flex-direction: column; align-items: flex-start; gap: .6rem; }\n  .schema-head { align-items: flex-start; flex-direction: column; gap: .25rem; }\n  .citation, .docs-help .container { align-items: flex-start; flex-direction: column; }\n  .docs-help .container > div:last-child { flex-wrap: wrap; }\n  .demo-placeholder { min-height: 270px; }\n  .hero-actions .button { width: 100%; }\n  .docs-hero { padding: 4rem 0 3.5rem; }\n  .docs-hero h1 { font-size: 2.7rem; }\n  .doc-pagination { flex-direction: column; }\n  .doc-pagination a, .doc-pagination a:last-child { max-width: 100%; text-align: left; margin-left: 0; }\n}\n\n@media (prefers-reduced-motion: reduce) {\n  html { scroll-behavior: auto; }\n  *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }\n}\n
+@media (max-width: 900px) {
+  .nav-toggle { display: block; }
+  .nav-links { display: none; position: absolute; top: 72px; left: 0; right: 0; background: var(--ink); padding: 1.2rem 1.5rem; flex-direction: column; align-items: stretch; border-bottom: 1px solid #263649; }
+  .nav-links.is-open { display: flex; }
+  .hero-section { min-height: auto; padding: 5rem 0; }
+  .hero-layout, .two-column { grid-template-columns: 1fr; gap: 2rem; }
+  .quickstart-card { transform: none; }
+  .workflow-grid { grid-template-columns: 1fr 1fr; }
+  .workflow-grid article:last-child { grid-column: span 2; }
+  .architecture-bar { flex-wrap: wrap; justify-content: flex-start; }
+  .capability-grid { grid-template-columns: 1fr 1fr; }
+  .capability-grid article { border-bottom: 1px solid var(--line); }
+  .capability-grid article:nth-child(2) { border-right: 0; }
+  .demo-frame { grid-template-columns: 1fr; }
+  .case-studies-grid { grid-template-columns: 1fr; }
+  .hub-study-card { grid-template-columns: 1fr; gap: 1.2rem; }
+  .hub-study-action { align-self: flex-start; }
+  .article-grid { grid-template-columns: 1fr; gap: 1rem; }
+  .doc-toc { position: static; grid-row: 1; border-left: 0; border-bottom: 1px solid var(--line); padding: 0 0 1.5rem; max-height: none; }
+  .docs-hero-inner { align-items: start; flex-direction: column; }
+  .footer-inner { grid-template-columns: 1fr; text-align: center; justify-items: center; }
+}
+
+@media (max-width: 650px) {
+  .container { width: min(100% - 2.2rem, 1152px); }
+  .section { padding: 5rem 0; }
+  .hero-copy h1 { font-size: 3rem; }
+  .section-intro { grid-template-columns: 38px 1fr; }
+  .workflow-grid, .capability-grid, .featured-docs, .resource-grid, .docs-card-grid, .case-studies-grid { grid-template-columns: 1fr; }
+  .workflow-grid article:last-child { grid-column: auto; }
+  .capability-grid article { border-right: 0; }
+  .architecture-bar { flex-direction: column; align-items: flex-start; }
+  .architecture-bar > i { display: none; }
+  .quickstart-steps { grid-template-columns: 1fr; }
+  .quickstart-footer { flex-direction: column; align-items: flex-start; gap: .6rem; }
+  .schema-head { align-items: flex-start; flex-direction: column; gap: .25rem; }
+  .citation, .docs-help .container { align-items: flex-start; flex-direction: column; }
+  .docs-help .container > div:last-child { flex-wrap: wrap; }
+  .demo-placeholder { min-height: 270px; }
+  .hero-actions .button { width: 100%; }
+  .docs-hero { padding: 4rem 0 3.5rem; }
+  .docs-hero h1 { font-size: 2.7rem; }
+  .doc-pagination { flex-direction: column; }
+  .doc-pagination a, .doc-pagination a:last-child { max-width: 100%; text-align: left; margin-left: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+}

@@ -177,7 +177,7 @@ compress_html:
   profile: false
   blanklines: false
   ignore:
-    envs: [development]
+    envs: all
 
 exclude:
   - assets/css/jekyll-theme-chirpy.scss
