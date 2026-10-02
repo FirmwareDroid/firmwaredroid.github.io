@@ -1,0 +1,14 @@
+- id: start
+  number: "01"
+  kicker: "Start here"
+  title: "Set up and use FMD"
+
+- id: understand
+  number: "02"
+  kicker: "Understand FMD"
+  title: "Architecture and data flow"
+
+- id: extend
+  number: "03"
+  kicker: "Extend and maintain"
+  title: "Customize and troubleshoot"

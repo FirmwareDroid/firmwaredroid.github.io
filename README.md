@@ -1,81 +1,57 @@
-<div align="center">
+# FirmwareDroid Wiki
 
-  # Chirpy Jekyll Theme
+This repository contains the public website and usage documentation for
+[FirmwareDroid (FMD)](https://github.com/FirmwareDroid/FirmwareDroid), a research framework for extracting and
+analyzing pre-installed Android applications from firmware images.
 
-  A minimal, responsive, and feature-rich Jekyll theme for technical writing.
+The site combines an ICSE Tool Demo-oriented overview with detailed guides for installing, operating, querying,
+extending, and maintaining FMD. It is built with Jekyll and deployed to
+[firmwaredroid.github.io](https://firmwaredroid.github.io/) through GitHub Pages.
 
-  [![Gem Version](https://img.shields.io/gem/v/jekyll-theme-chirpy?color=brightgreen)][gem]&nbsp;
-  [![CI](https://github.com/cotes2020/jekyll-theme-chirpy/actions/workflows/ci.yml/badge.svg?branch=master&event=push)][ci]&nbsp;
-  [![Codacy Badge](https://app.codacy.com/project/badge/Grade/4e556876a3c54d5e8f2d2857c4f43894)][codacy]&nbsp;
-  [![GitHub license](https://img.shields.io/github/license/cotes2020/jekyll-theme-chirpy.svg)][license]&nbsp;
-  [![996.icu](https://img.shields.io/badge/link-996.icu-%23FF4D5B.svg)](https://996.icu)
+## Local development
 
-  [**Live Demo** →][demo]
+Install the Ruby dependencies and start Jekyll:
 
-  [![Devices Mockup](https://chirpy-img.netlify.app/commons/devices-mockup.png)][demo]
+```bash
+bundle install
+bundle exec jekyll serve
+```
 
-</div>
+The local site is then available at `http://127.0.0.1:4000/`.
 
-## Features
+Run a production build before submitting changes:
 
-- Dark / Light Theme Mode
-- Localized UI language
-- Pinned Posts on Home Page
-- Hierarchical Categories
-- Trending Tags
-- Table of Contents
-- Last Modified Date
-- Syntax Highlighting
-- Mathematical Expressions
-- Mermaid Diagrams & Flowcharts
-- Dark / Light Mode Images
-- Embed Videos
-- Disqus / Giscus / Utterances Comments
-- Built-in Search
-- Atom Feeds
-- PWA
-- Google Analytics / GoatCounter
-- SEO & Performance Optimization
+```bash
+JEKYLL_ENV=production bundle exec jekyll build
+```
 
-## Documentation
+Documentation articles live in `_posts`. The showcase homepage is `index.html`, and the documentation catalog is
+`documentation.md`. Shared styling and behavior are located in `assets/css/fmd.css` and `assets/js/fmd.js`.
 
-To learn how to use, develop, and upgrade the project, please refer to the [Wiki][wiki].
+## Adding documentation posts
+
+Documentation guides are managed dynamically by adding Markdown files to the `_posts/` directory (e.g. `_posts/YYYY-MM-DD-title.md`). The display position and group placement in the documentation catalog ([documentation.md](file:///Users/tom/Documents/02_INIT/02_PhD/02_Research/02_FirmwareDroid/firmwaredroid.github.io/documentation.md)) and homepage are driven by front-matter metadata:
+
+```yaml
+---
+title: Guide Title
+description: Brief summary of the article.
+order: 5              # Display position in the documentation catalog (or 'position: 5')
+group: extend         # Catalog group: 'start', 'understand', or 'extend'
+icon: fas fa-book     # FontAwesome icon class (e.g. 'fas fa-rocket', 'fas fa-code')
+label: Tutorial       # Badge label (defaults to post category or 'Guide')
+featured: false       # Optional boolean to highlight the card
+---
+```
+
+When a new post is added with front matter, it is automatically cataloged in the specified group at the given order without modifying `documentation.md`.
 
 ## Contributing
 
-Contributions (_pull requests_, _issues_, and _discussions_) are what make the open-source community such an amazing place
-to learn, inspire, and create. Any contributions you make are greatly appreciated.
-For details, see the "[Contributing Guidelines][contribute-guide]".
-
-## Credits
-
-### Contributors
-
-Thanks to [all the contributors][contributors] involved in the development of the project!
-
-[![all-contributors](https://contrib.rocks/image?repo=cotes2020/jekyll-theme-chirpy&columns=16)][contributors]
-<sub> —— Made with [contrib.rocks](https://contrib.rocks)</sub>
-
-### Third-Party Assets
-
-This project is built on the [Jekyll][jekyllrb] ecosystem and some [great libraries][lib], and is developed using [VS Code][vscode] as well as tools provided by [JetBrains][jetbrains] under a non-commercial open-source software license.
-
-The avatar and favicon for the project's website are from [ClipartMAX][clipartmax].
+Corrections and improvements are welcome through pull requests or issues. When changing a page, preserve existing
+post permalinks because published documentation links may depend on them.
 
 ## License
 
-This project is published under [MIT License][license].
-
-[gem]: https://rubygems.org/gems/jekyll-theme-chirpy
-[ci]: https://github.com/cotes2020/jekyll-theme-chirpy/actions/workflows/ci.yml?query=event%3Apush+branch%3Amaster
-[codacy]: https://app.codacy.com/gh/cotes2020/jekyll-theme-chirpy/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_grade
-[license]: https://github.com/cotes2020/jekyll-theme-chirpy/blob/master/LICENSE
-[jekyllrb]: https://jekyllrb.com/
-[clipartmax]: https://www.clipartmax.com/middle/m2i8b1m2K9Z5m2K9_ant-clipart-childrens-ant-cute/
-[demo]: https://cotes2020.github.io/chirpy-demo/
-[wiki]: https://github.com/cotes2020/jekyll-theme-chirpy/wiki
-[contribute-guide]: https://github.com/cotes2020/jekyll-theme-chirpy/blob/master/docs/CONTRIBUTING.md
-[contributors]: https://github.com/cotes2020/jekyll-theme-chirpy/graphs/contributors
-[lib]: https://github.com/cotes2020/chirpy-static-assets
-[vscode]: https://code.visualstudio.com/
-[jetbrains]: https://www.jetbrains.com/?from=jekyll-theme-chirpy
+The website source is distributed under the repository's [MIT License](LICENSE). FirmwareDroid itself is licensed
+under [GNU GPL v3.0](https://github.com/FirmwareDroid/FirmwareDroid/blob/main/LICENSE.md).

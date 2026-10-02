@@ -2,109 +2,102 @@
 title: FMD Architecture
 author: tom
 date: 2024-07-08 13:37:00 +0800
+last_modified_at: 2026-09-30 16:45:00 +0200
+description: Technical architecture, container composition, queue system, and directory structure of FirmwareDroid.
 categories: [Documentation, Architecture]
-tags: [Architecture, API, Overview]
+tags: [architecture, api, overview, docker]
+order: 3
+position: 3
+group: understand
+icon: fas fa-sitemap
+label: Concepts
 ---
 
-To give you a better understanding of the FirmwareDroid (FMD) architecture, we will provide an overview of the 
-different components and how they interact with each other. A good starting point of the components can 
-be found in our research paper [FirmwareDroid: Towards Automated Static Analysis of Pre-Installed Android Apps](https://ieeexplore.ieee.org/document/10172951).
-However, the implementation mentioned in the paper is already a bit outdated, and 
-we will provide you with the most recent information in this post.
+To give you a better understanding of the FirmwareDroid (FMD) architecture, this post provides an overview of the system components and how they interact. A foundational description of the original concept can be found in our research paper [FirmwareDroid: Towards Automated Static Analysis of Pre-Installed Android Apps](https://ieeexplore.ieee.org/document/10172951). FMD has evolved significantly since that publication; this document reflects the current, streamlined architecture.
 
 ## Architecture Overview
-The following image gives you an overview of the different components and how they interact with each other:
+
+The following diagram illustrates the primary architectural components and data flows:
 
 ![FirmwareDroidOverview](https://firmwaredroid.github.io/commons/FirmwareDroidOverview.png)
 
-The main idea of FirmwareDroid is to be able to analyze Android firmware images and the pre-installed applications (APKs)
-at scale. The architecture of FMD is designed to be scalable and modular. The main components of the FMD architecture
-are based on docker containers and are orchestrated by docker compose. A redis queue is used to manage the different
-tasks, workers, and queues. We use RQ (Redis Queue) as a simple Python library for queueing jobs and 
-processing them in the background with workers. Workers are docker containers that are responsible for different tasks
-like extracting firmware, scanning APKs, or analyzing the extracted firmware. The main webserver is a Django application
-that serves the client-side of the FMD application. The client-side is a React application that served by Django and
-gunicorn. The main database is a MongoDB database that stores the extracted firmware and the analysis results.
+FirmwareDroid analyzes Android firmware images and their pre-installed applications (APKs) at scale. Its modular architecture is composed of isolated Docker containers orchestrated via Docker Compose:
 
-### Main directories and files
-Following is a brief overview of the main directories and files in the FirmwareDroid repository (state of 2024-07-08):
-- `setup.py`: A standalone script that installs the necessary environment files and sets up the project.
-- `blob_storage`: The main storage directory for all the data (databases and blobs).
-- `docker`: Contains the Dockerfiles and scripts to build the Docker containers.
-- `firmware-droid-client`: The client-side (web interface) of the FMD application.
-- `requirements`: The Python requirements for the different tools and components.
-- `source`: The source code of the FMD application.
-  - `models`: The database models.
-  - `static`: The static files (CSS, JS, images).
-  - `api`: The definition of the GraphQL API schema and endpoints.
-  - `webserver`: The Django webserver configuration. 
-- `Dockerfile_BASE`: Base Dockerfile for the FMD application and all derived docker containers.
+- **Reverse Proxy & TLS:** Nginx provides TLS termination and routes requests to the API, web client, or static assets.
+- **Web & API Backend:** A Django application served via Gunicorn exposing a unified GraphQL API and Django administration.
+- **Frontend Client:** A single-page application built with React and served through Django/Nginx.
+- **Databases:**
+  - **MongoDB:** Stores firmware metadata, partition structures, APK details, and static analysis reports (configured as a single-node replica set with keyfile authentication).
+  - **Neo4j:** Graph database for modeling relationships and structural knowledge graphs across firmware components.
+- **Task Queues & Workers:** Redis coordinates background jobs using Redis Queue (RQ). Dedicated worker containers execute heavy firmware extraction and multi-engine static analysis asynchronously.
+
+---
+
+### Main Directories and Files
+
+A repository overview of the current FirmwareDroid codebase:
+
+- `docker-compose.yml` / `docker-compose-release.yml`: Compose definitions for building from source or deploying pre-built container bundles.
+- `docker/`:
+  - `init/`: Bootstrap container (`fmd-init`) that automatically generates TLS certificates, database credentials, and service configurations on the first run.
+  - `base/`: Dockerfiles for base runtime images, backend, extractor, and APK scanner.
+  - `build_images.sh`: Automation script for building and tagging local Docker images.
+  - `setup_apk_scanner.py`: Build-time script setting up isolated Python virtual environments under `/opt/scanners/`.
+- `docker_entrypoint.sh`: Container startup entrypoint for the Django backend and RQ workers.
+- `blob_storage/`: Host mount directory for persistent databases (MongoDB, Neo4j) and blob storage partitions (`00_file_storage` through `09_file_storage`).
+- `firmware-droid-client/`: Submodule containing the React-based frontend web interface.
+- `requirements/`: Python requirement manifests for backend services and individual static analysis tools.
+- `source/`: Application source code:
+  - `api/v2/`: GraphQL schema definitions, mutations, and query resolvers.
+  - `firmware_handler/`: Archive extraction, partition parsing, and file indexing logic.
+  - `hashing/`: SSDeep and TLSH fuzzy hash generators.
+  - `model/`: MongoEngine database models.
+  - `static_analysis/`: Analyzer wrappers for tools like AndroGuard, MobSF, APKLeaks, etc.
+  - `webserver/`: Django configuration and RQ queue definitions.
+
+---
 
 ### Docker Containers
-Following is a brief overview of the different docker containers used in the FirmwareDroid application 
-(state of 2024-07-08):
-- `backend-work`: The main webserver that serves the FMD application.
-- `extractor-worker`: A worker container that extracts the firmware and handles files.
-- `apk_scanner-worker`: A worker container that is responsible for APK scanning with various static analysis tools.
-- `nginx`: The reverse proxy that forwards the requests to the backend and the client. Used to provide TLS termination.
-- `mongo-db-1`: The MongoDB database that stores the extracted firmware and the analysis results. Running as a replica 
-set.
 
-By default, the docker containers are started with the `docker-compose.yml` file in the root directory of the server. 
-The docker-compose.yml consumes the `.env` file in the root directory of the server to set the environment variables
-for the different containers. 
+The deployment stack consists of the following microservices:
 
-### Environment Variables
-The FMD application uses environment variables to configure the different components. The environment variables are
-stored in the `.env` file in the root directory of the server. Additionally, there exists a `env` directory, that 
-contains the environment files for the different docker containers.
+1. **`fmd-init` (`init`)**:
+   An idempotent bootstrap container. Runs before any other service (`condition: service_completed_successfully`). Generates self-signed certificates, Mongo replica set credentials, Redis authentication, and Django superuser credentials into an isolated named volume (`fmd-config`).
+2. **`backend-worker` (`web`)**:
+   The core webserver running Django, Gunicorn, and the GraphQL API.
+3. **`mongo-db-1`**:
+   MongoDB database running with keyfile authentication and replica set mode enabled.
+4. **`neo4j`**:
+   Neo4j graph database exposing Bolt and web browser endpoints.
+5. **`redis`**:
+   In-memory data store acting as the message broker for background task queues.
+6. **`extractor-worker-1`**:
+   High-privilege worker container listening on the `extractor` queue. Responsible for unpacking firmware archives, mounting images, extracting partitions, and cataloging APKs.
+7. **`apk_scanner-worker-1`**:
+   Dedicated worker container listening on the `scanner` queue. Houses individual virtual environments for running static analyzers concurrently without library conflicts.
+8. **`nginx`**:
+   Front-facing reverse proxy handling HTTPS on port `443` and HTTP redirect on port `80`.\
 
-### RQ Worker Queues
-The queues in the RQ worker (see [RQ](https://python-rq.org/)) are used to manage the different tasks and workers. 
-The following queues are used in the FMD application (state of 2024-07-08):
-- `high-python`: The high-privilege queue for Python workers that have the access right to mount directories. This queue
-is mainly used for the extraction of firmware and should not be used for other tasks.
-- `default-python`: The default-privilege queue for Python workers that scan APKs and analyze the extracted firmware.
+---
 
-The queues are initialized in the `settings.py` file of the Django application. The following snippet shows the 
-default configuration:
-```
-RQ_QUEUES = {
-    'high-python': {
-        'HOST': REDIS_HOST,
-        'PORT': 6379,
-        'DB': 0,
-        'PASSWORD': REDIS_PASSWORD,
-        'DEFAULT_TIMEOUT': 60 * 60 * 24 * 14,
-        'DEFAULT_RESULT_TTL': 60 * 60 * 24 * 3,
-    },
-    'default-python': {
-        'HOST': REDIS_HOST,
-        'PORT': 6379,
-        'DB': 0,
-        'PASSWORD': REDIS_PASSWORD,
-        'DEFAULT_TIMEOUT': 60 * 60 * 24 * 14,
-        'DEFAULT_RESULT_TTL': 60 * 60 * 24 * 3,
-    },
-}
-```
-Additional queues can be added by extending the `RQ_QUEUES` dictionary in the `settings.py` file.
+### Zero-Configuration & Environment Overrides
 
-Tasks can be enqueued in the different queues by using the `django_rq` library. The following snippet shows how to
-enqueue a task in a specific queue:
-```
-queue_name = 'high-python'
-func_to_run = 'path.to.your.function'
-queue = django_rq.get_queue(queue_name)
-job = queue.enqueue(func_to_run, job_timeout=ONE_WEEK_TIMEOUT)
-```
-When workers are listening, they will pick up the tasks from the different queues in a first-in-first-out manner. Every
-worker is assigned to a specific queue and will only process tasks from this queue. Workers are spawned by the
-`rqworker` command and can be scaled up and down depending on the workload. The following snippet shows how to start
-a worker for a specific queue within a docker container:
-```
-# Snippet from the docker-compose.yml
-...
-command: rqworker --logging_level INFO --name extractor-worker-high-1 --url redis://:${REDIS_PASSWORD}@redis:6379/0 high-python
-...
-```
+FMD is designed to work completely zero-config out of the box:
+
+- On initial startup, the `fmd-init` container provisions all passwords, cluster keys, and self-signed certificates directly into the isolated `fmd-config` volume.
+- Secrets never leak into the host Git repository. You can inspect generated credentials at any time:
+  ```bash
+  docker compose logs init
+  # or copy the summary file:
+  docker compose cp init:/config/secrets/generated-secrets.txt .
+  ```
+- If you need to override runtime parameters (e.g. `DOMAIN_NAME`, worker resource limits `DOCKER_CPU_LIMIT`/`DOCKER_MEMORY_LIMIT`, or persistent storage bind paths), you can optionally supply a `.env` file in the repository root.
+
+---
+
+### Routine Operations and Monitoring
+
+- **GraphQL API Explorer**: [https://fmd.localhost/graphql/](https://fmd.localhost/graphql/)
+- **Django Admin**: [https://fmd.localhost/admin/](https://fmd.localhost/admin/)
+- **RQ Worker Management**: [https://fmd.localhost/django-rq/](https://fmd.localhost/django-rq/)
+- **Neo4j Browser**: [http://localhost:7474/](http://localhost:7474/)

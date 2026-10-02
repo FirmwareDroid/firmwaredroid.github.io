@@ -2,228 +2,295 @@
 title: Exploring the API
 author: tom
 date: 2024-04-02 13:37:00 +0800
+last_modified_at: 2026-09-30 16:40:00 +0200
+description: Learn how to import firmware, manage queues, run static analysis, and query results via the GraphQL API.
 categories: [Tutorial, API]
-tags: [getting started, api, tutorial]
+tags: [getting started, api, tutorial, graphql]
+order: 2
+position: 2
+group: start
+icon: fas fa-code
+label: Tutorial
 toc: true
 ---
 
-All the examples in this tutorial use the graphql API available under 
-[https://fmd.localhost/graphql](https://fmd.localhost/graphql), 
-which allows to explore the API documentation and to build graphQL queries and mutations. Please note
-that the API is only available when the application is running. The API is subject to change and queries in this
-example might not work in future versions of FMD. However, the general structure of the API should remain the same.
+All examples in this tutorial interact with the GraphQL API hosted at [https://fmd.localhost/graphql/](https://fmd.localhost/graphql/). The interactive GraphQL explorer allows you to inspect the schema, browse documentation, and build queries and mutations directly in your browser.
 
+> The API is only accessible when the FirmwareDroid stack is up and running. Before executing these queries, ensure your containers are running via `docker compose up -d` (or `docker compose -f docker-compose-release.yml up -d`).
+{: .prompt-info }
+
+### Authentication
+
+Most API endpoints require superuser authentication. If you are already logged in to Django administration or the web interface at [https://fmd.localhost/](https://fmd.localhost/), your browser session cookie authenticates your requests in the GraphQL explorer automatically.
+
+Alternatively, you can authenticate programmatically using `tokenAuth`:
+
+```graphql
+query AuthenticateUser {
+  tokenAuth(username: "YOUR_DJANGO_SUPERUSER_USERNAME", password: "YOUR_DJANGO_SUPERUSER_PASSWORD") {
+    token
+    payload
+  }
+}
+```
+
+Include the returned token in the HTTP `Authorization` header for subsequent requests:
+```text
+Authorization: JWT <YOUR_TOKEN>
+```
+
+> Generated administrator credentials can be retrieved from `docker compose logs init` or copied from the container via `docker compose cp init:/config/secrets/generated-secrets.txt .`.
+{: .prompt-tip }
+
+---
 
 ### Importing Android Firmware
 
-After setting up the application, you might want to start exploring some Android firmware. By default,
-FMD creates a folder `blob_storage`, where all the data (databases and blobs) will be stored. To import Android firmware
-you need to copy the Android firmware archives (.zip, .tar) into the import folder:
-`blob_storage/00_file_storage/<random_id>/firmware_import`
+After starting FMD, you can import Android firmware archives (`.zip`, `.tar`, `.tgz`, `.7z`, etc.) for extraction and inventorying.
 
-1. Copy your firmware into the import folder:
-   ```
-   `blob_storage/00_file_storage/<random_id>/firmware_import`
-   ```
-   
-2. Navigate to the graphql API (https://fmd.localhost/graphql) and start the mutation job: `createFirmwareExtractorJob`.
-   This will trigger the `extractor-worker-high-1` container to import the firmware from the `/firmware_import` folder.
-   ```
-   # First, log-in in case you haven't already
-   query MyQuery {
-     tokenAuth(password: "XXXXX", username: "XXXX") {
-       token
-       payload
-     }
-   }
-   
-   # Second, start the import.
-   mutation StartImport {
-     createFirmwareExtractorJob(createFuzzyHashes: false, 
-     queueName: "high-python") {
-       jobId
-     }
-   }
-   ```
-   Importing takes several minutes. Might be a good moment to get a coffee.
+#### 1. Place firmware archives in the import directory
 
-3. You can monitor the status of the `createFirmwareExtractorJob` on https://fmd.localhost/django-rq or
-   alternative you can connect directly to the database to see if it was successfully imported.
-   To connect to the database you need a MongoDb-client (e.g., Studio 3T). You will find the connection credentials
-   for mongodb in the `.env` file:
-   ```
-   cat .env
-   ...
-   MONGODB_USERNAME=XXXX
-   MONGODB_PASSWORD=XXXX
-   ...
-   ```
-   Connect to 127.0.0.1:27017 using SCRAM-SHA-256 authentication. You find all successfully imported firmware samples
-   in the collection `android_firmware`.
+Persistent data is stored in the `blob_storage` hierarchy. The initial storage pool is located in `00_file_storage`:
 
-4. If the firmware was successfully imported you should have the collections `android_firmware` and `android_app`
-   in the database, where you can find already some meta-data. Moreover, you can find the extracted
-   apps within the blob storage:
-   ```
-   APKs: `blob_storage/00_file_storage/<random-id>/android_app_store/<firmware-hash>/<partition-name>/`
-   Firmware: `blob_storage/00_file_storage/<random-id>/firmware_store/<android-version>/<firmware-hash>/`
-   Firmware (failed): `blob_storage/00_file_storage/<random-id>/firmware_import_failed/`
-   ```
-   If for some reason the importer wasn't able to extract the firmware, the firmware will be moved to the
-   `firmware_import_failed` directory in the blob storage and you need to check the docker logs why it failed.
-   
-   You can also use the graphql API to fetch all available firmware data with the following example queries
-   in case the import was successful:
-   ```
-   # Gets a list of firmware object-ids
-   query GetAndroidFirmwareIds {
-     android_firmware_id_list
-   }
-   ```
+```text
+blob_storage/00_file_storage/<storage_uuid>/firmware_import/
+```
 
-   Take the resulting firmware object-ids from the query above (`GetAndroidFirmwareIds`) and use them for the
-   following query `GetAndroidFirmwareIds`
-   to fetch some firmware meta-data. (Replace XXXX with the firmware id you want to fetch in the query below)
-   ```
-   query GetAndroidFirmwareIds {
-     android_firmware_list(objectIdList: ["XXXXX"]) {
-       absoluteStorePath
-       fileSizeBytes
-       filename
-       has_file_index
-       has_fuzzy_hash_index
-       id
-       indexedDate
-       md5
-       originalFilename
-       osVendor
-       relativeStorePath
-       sha1
-       sha256
-       tag
-       versionDetected
-     }
-   }
-   ```
+Copy your firmware archive(s) into this `firmware_import` directory.
 
-   You can fetch meta-data about the Android apps with the following two queries. (Replace XXXXX with the firmware id)
-   ```
-   # Fetch Android app objects by firmware id.
-   query GetAndroidApps {
-     android_app_list(
-     objectIdList: ["XXXXX"], 
-     documentType: "AndroidFirmware") {
-       sha256
-       sha1
-       relativeStorePath
-       relativeFirmwarePath
-       pk
-       packagename
-       md5
-       indexedDate
-       id
-       filename
-       fileSizeBytes
-       absoluteStorePath
-     }
-   }
-   ```
+#### 2. Trigger the extraction job
 
-   ```
-   # Fetch just the Android app object-ids by the firmware-id
-   query GetAndroidAppIds {
-     android_app_id_list_by_firmware(
-       objectIdList: ["XXXXX"])
-   }
-   ```
+Open [https://fmd.localhost/graphql/](https://fmd.localhost/graphql/) and execute the `createFirmwareExtractorJob` mutation:
 
+```graphql
+mutation StartFirmwareImport {
+  createFirmwareExtractorJob(
+    createFuzzyHashes: false
+    queueName: "extractor"
+    storageIndex: 0
+  ) {
+    jobId
+  }
+}
+```
 
-### Static Analysis on Android apps
+- `createFuzzyHashes`: Set to `true` to compute SSDeep/TLSH fuzzy hashes for all extracted files.
+- `queueName`: The target queue (defaults to `"extractor"`).
+- `storageIndex`: Index of the storage partition to use (defaults to `0`).
 
-Currently, FMD does not have a user interface for all features. To scan we use the graphql API. We are working
-on the FMD user-interface. However, since FMD is a research project our focus is currently mainly on enhancing the
-backend and not the frontend.
+This triggers the `extractor-worker-1` container to unpack the archive, extract filesystem images (such as `system`, `vendor`, `product`, `apex`), parse `build.prop`, and inventory all contained APKs.
 
-To scan Android apps, you will need to have the object-ids of the Android apps you want to scan. You can get the
-object-ids directly from the database (collection: `android_app`) or via the graphql API.
-1. To do it via graphql, navigate to https://fmd.localhost/graphql and run the following query to fetch the object-ids.
-   (Replace XXXXXX with the firmware id.)
-   ```
-   query GetAndroidAppIds {
-     android_app_id_list_by_firmware(objectIdList: ["XXXXXX"])
-   }
-   ```
-   As result, you will get a list of all the available Android app object-ids from the specified firmware. We can now
-   scan these Android apps with one of the static-analysers.
+#### 3. Monitor extraction progress
 
-2. In this example, we use AndroGuard. However, you could use any of the following static-analysers as well. Please,
-   note that not every scanner was built for mass scanning and some of them might be slow in scanning speed.
-   ```
-     ANDROGUARD
-     ANDROWARN
-     APKID
-     APKLEAKS
-     EXODUS
-     QUARKENGINE
-     QARK
-     SUPER 
-   ```
-   We start a scan job with the `createApkScanJob` mutation on https://fmd.localhost/graphql. We use the mutation as
-   follows. (Replace XXXX with the Android app object-ids you want to scan. Set the moduleName option to one from the
-   above list)
-   ```
-   mutation MyMutation {
-     createApkScanJob(
-       moduleName: "ANDROGUARD"
-       objectIdList: ["XXXXX", "XXXXX", "XXXXX", "XXXXX"]
-       queueName: "default-python"
-     ) {
-       jobId
-     }
-   }
-   ```
-3. After executing the mutation, the docker container named `apk_scanner-worker-1` should start scanning
-   the Android apps. You can monitor the status of jobs on https://fmd.localhost/django-rq or
-   take a look at the logs in docker with: `docker-compose logs -f apk_scanner-worker-1`
+Firmware extraction can take several minutes depending on the archive size and archive compression. Monitor the worker status using any of the following methods:
 
-4. The results of the scan job can either be viewed over the graphql API or directly on the database
-   (collection `apk_scanner_report` in the db). After scanning, a reference to the scan result
-   is stored in the Android app document. For instance,
-   when scanning with AndroGuard, apps will have a reference called `androguard_report_reference` holding a object-id
-   reference to the scanner report document (e.g., `androguard_report`).
+- **RQ Job Monitor:** View live queue activity at [https://fmd.localhost/django-rq/](https://fmd.localhost/django-rq/).
+- **Container Logs:** Stream logs from the extractor worker:
+  ```bash
+  docker compose logs -f extractor-worker-1
+  # or when using release images:
+  docker compose -f docker-compose-release.yml logs -f extractor-worker-1
+  ```
+- **GraphQL Job Query:** Inspect the specific job using its returned `jobId`:
+  ```graphql
+  query CheckExtractorJob {
+    rqJob(jobId: "YOUR_JOB_ID", queueName: "extractor") {
+      id
+      status
+      startedAt
+      endedAt
+      isFinished
+      isFailed
+      excInfo
+    }
+  }
+  ```
 
-   If we want to fetch the results, we used the object-ids for the `androguard_report` from the android app object.
-   (Replace XXXXX with the androguard_report object-ids)
-   ```
-   query GetAndroGuardReports {
-     androguard_report_list(
-       objectIdList: ["XXXXX", "XXXXX", "XXXXX"]) {
-       Cls
-       androidVersionCode
-       androidVersionName
-       appName
-       effectiveTargetVersion
-       isAndroidtv
-       id
-       isLeanback
-       isMultidex
-       isSignedV1
-       isSignedV2
-       isSignedV3
-       isValidApk
-       isWearable
-       mainActivity
-       manifestXml
-       maxSdkVersion
-       minSdkVersion
-       packagename
-       permissionDetails
-       permissionsDeclaredDetails
-       reportDate
-       scannerName
-       scannerVersion
-       targetSdkVersion
-     }
-   }
-   ```
-   As a result you will get the scanning result from AndroGuard.
+#### 4. Direct database inspection (optional)
+
+You can connect directly to MongoDB using any GUI client (such as Studio 3T, Compass, or `mongosh`).
+
+Retrieve the generated MongoDB credentials:
+```bash
+docker compose cp init:/config/secrets/generated-secrets.txt .
+cat generated-secrets.txt
+```
+
+Use the following connection settings:
+- **Host / Port:** `127.0.0.1:27017`
+- **Database:** `FirmwareDroid`
+- **Authentication Database:** `admin`
+- **Authentication Mechanism:** `SCRAM-SHA-256`
+- **Username / Password:** Use the `Mongo app username` or `Mongo root username` from `generated-secrets.txt`.
+
+Successfully imported firmware records are stored in the `android_firmware` collection, and extracted applications are recorded in `android_app`.
+
+#### 5. Storage output layout
+
+Extracted files and processed archives are organized within the blob store:
+
+- **Extracted APKs:** `blob_storage/00_file_storage/<storage_uuid>/android_app_store/<firmware_hash>/<partition_name>/`
+- **Stored Firmware:** `blob_storage/00_file_storage/<storage_uuid>/firmware_store/<android_version>/<firmware_hash>/`
+- **Failed Imports:** `blob_storage/00_file_storage/<storage_uuid>/firmware_import_failed/`
+
+If an extraction fails, check the logs of `extractor-worker-1` for details.
+
+#### 6. Query imported firmware data
+
+Once extraction completes, list all available firmware record IDs:
+
+```graphql
+query GetAndroidFirmwareIds {
+  android_firmware_id_list
+}
+```
+
+Retrieve detailed metadata for specific firmware samples using their IDs:
+
+```graphql
+query GetAndroidFirmwareDetails {
+  android_firmware_list(objectIdList: ["YOUR_FIRMWARE_ID"]) {
+    id
+    filename
+    originalFilename
+    md5
+    sha1
+    sha256
+    fileSizeBytes
+    versionDetected
+    osVendor
+    relativeStorePath
+    absoluteStorePath
+    indexedDate
+    hasFileIndex
+    hasFuzzyHashIndex
+  }
+}
+```
+
+Fetch the list of application IDs discovered inside the firmware:
+
+```graphql
+query GetAppIdsForFirmware {
+  android_app_id_list(objectIdList: ["YOUR_FIRMWARE_ID"])
+}
+```
+
+Query comprehensive details for the extracted apps:
+
+```graphql
+query GetAndroidApps {
+  android_app_list(objectIdList: ["YOUR_APP_ID"]) {
+    id
+    pk
+    filename
+    packagename
+    md5
+    sha1
+    sha256
+    fileSizeBytes
+    relativeFirmwarePath
+    relativeStorePath
+    absoluteStorePath
+    indexedDate
+  }
+}
+```
+
+---
+
+### Static Analysis on Android Apps
+
+Once firmware has been extracted and APKs are cataloged, you can schedule static analysis jobs across individual apps or batches of applications.
+
+#### 1. Check available static analyzers
+
+Query the backend for all currently supported static analysis modules:
+
+```graphql
+query GetAvailableScanners {
+  scanner_module_name_list
+}
+```
+
+Supported modules include:
+- `ANDROGUARD`
+- `ANDROWARN`
+- `APKID`
+- `APKLEAKS`
+- `APKSCAN`
+- `EXODUS`
+- `FLOWDROID`
+- `MANIFEST`
+- `MOBSF`
+- `QARK`
+- `QUARKENGINE`
+- `SUPER`
+- `TRUESEEING`
+- `TRUFFLEHOG`
+- `VIRUSTOTAL`
+
+#### 2. Schedule a static analysis job
+
+Dispatch a scan job using the `createApkScanJob` mutation. Provide the analyzer module name and the list of application IDs to analyze:
+
+```graphql
+mutation RunAndroguardAnalysis {
+  createApkScanJob(
+    moduleName: "ANDROGUARD"
+    objectIdList: ["YOUR_APP_ID_1", "YOUR_APP_ID_2"]
+    queueName: "scanner"
+  ) {
+    jobIdList
+  }
+}
+```
+
+- `moduleName`: The analyzer to run (e.g. `"ANDROGUARD"`).
+- `objectIdList`: Array of `AndroidApp` object IDs to analyze.
+- `queueName`: The target queue (defaults to `"scanner"`).
+
+#### 3. Monitor scanner workers
+
+The `apk_scanner-worker-1` container picks up tasks from the `"scanner"` queue. Follow its logs in real time:
+
+```bash
+docker compose logs -f apk_scanner-worker-1
+# or when using release images:
+docker compose -f docker-compose-release.yml logs -f apk_scanner-worker-1
+```
+
+You can also monitor active and finished scanner jobs at [https://fmd.localhost/django-rq/](https://fmd.localhost/django-rq/).
+
+#### 4. Retrieve analysis reports
+
+Scan results are stored in scanner-specific MongoDB collections (e.g. `androguard_report`) and linked to the corresponding `AndroidApp` record.
+
+To fetch AndroGuard reports for scanned apps:
+
+```graphql
+query GetAndroGuardReports {
+  androguard_report_list(objectIdList: ["YOUR_REPORT_ID"]) {
+    id
+    appName
+    packagename
+    androidVersionCode
+    androidVersionName
+    minSdkVersion
+    targetSdkVersion
+    maxSdkVersion
+    effectiveTargetVersion
+    mainActivity
+    isValidApk
+    isMultidex
+    isSignedV1
+    isSignedV2
+    isSignedV3
+    permissionDetails
+    permissionsDeclaredDetails
+    reportDate
+    scannerName
+    scannerVersion
+  }
+}
+```

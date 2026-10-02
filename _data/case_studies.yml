@@ -1,0 +1,41 @@
+- id: android-tv-boxes
+  title: Analysis of Android TV Boxes
+  subtitle: Pre-installed Malware, Botnets, and Trojanized Firmware
+  badge: Malware & Supply Chain
+  icon: fas fa-tv
+  summary: Unpacking off-the-shelf, uncertified Android TV streaming boxes to uncover pre-flashed click-fraud botnets, trojanized system daemons, and hidden C2 communications.
+  description: Low-cost streaming hardware based on AllWinner and Rockchip chipsets often ships with pre-installed malicious software directly in factory ROMs. We use FirmwareDroid to unpack system images, trace trojanized ADB daemons, and catalog malicious APKs communicating with ad-fraud infrastructure.
+  url: /case-studies/android-tv-boxes/
+  tags: [TV Boxes, AllWinner, Trojan, Click-Fraud, Unblob, MobSF]
+  date: October 1, 2026
+  read_time: 8 min read
+  published: false
+  status: "Publication Forthcoming"
+
+- id: scanning-single-app
+  title: Scanning a Single App with FMD
+  subtitle: Multi-Engine Static Inspection & Unified GraphQL Triage
+  badge: Analysis Workflow
+  icon: fas fa-cube
+  summary: A step-by-step workflow demonstrating how researchers can submit and analyze individual APKs across FMD's parallel analysis workers to generate unified findings.
+  description: While FMD specializes in full firmware extractions, researchers frequently need to triage suspicious individual APKs. This study demonstrates queuing an app through AndroGuard, MobSF, Exodus-Core, and APKLeaks, aggregating findings into a consolidated GraphQL query.
+  url: /case-studies/scanning-single-app/
+  tags: [Static Analysis, Multi-Scanner, APKLeaks, Exodus, GraphQL]
+  date: October 1, 2026
+  read_time: 6 min read
+  published: false
+  status: "Publication Forthcoming"
+
+- id: mobilesoft-2023
+  title: MOBILESoft 2023 Research Paper
+  subtitle: Towards Automated Static Analysis of Pre-Installed Android Apps
+  badge: Academic Publication
+  icon: fas fa-graduation-cap
+  summary: The peer-reviewed IEEE publication evaluating FirmwareDroid across diverse OEM firmware images, quantifying pre-installed apps and permission over-privileging at scale.
+  description: Published at the 10th IEEE/ACM International Conference on Mobile Software Engineering and Systems (MOBILESoft 2023), this empirical study introduced FMD's architecture and evaluated real-world vendor firmware to uncover structural variance, hidden attack surfaces, and privileged tracker ecosystems.
+  url: /case-studies/mobilesoft-2023/
+  tags: [Empirical Study, IEEE Conference, OEM Firmware, Over-Privileging]
+  date: May 2023
+  read_time: 10 min read
+  published: true
+  status: "Published"

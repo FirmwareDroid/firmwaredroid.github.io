@@ -14,12 +14,12 @@ timezone: Europe/Zurich
 # jekyll-seo-tag settings › https://github.com/jekyll/jekyll-seo-tag/blob/master/docs/usage.md
 # ↓ --------------------------
 
-title: FirmwareDroid # the main title
+title: FirmwareDroid
 
-tagline: Android Mobile Research # it will display as the sub-title
+tagline: Android Firmware Analysis Framework
 
-description: >- # used by seo meta and the atom feed
-  A framework for Android mobile research and security assessment.
+description: >-
+  Open-source research infrastructure for extracting, inventorying, and analyzing pre-installed Android applications.
 
 # Fill in the protocol & hostname for your site.
 # e.g. 'https://username.github.io', note that it does not end with a '/'.
@@ -61,7 +61,7 @@ social:
 #     light  - Use the light color scheme
 #     dark   - Use the dark color scheme
 #
-theme_mode: dark # [light | dark]
+theme_mode: dark
 
 # The CDN endpoint for images.
 # Notice that once it is assigned, the CDN url
@@ -180,6 +180,7 @@ compress_html:
     envs: [development]
 
 exclude:
+  - assets/css/jekyll-theme-chirpy.scss
   - "*.gem"
   - "*.gemspec"
   - docs
