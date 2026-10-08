@@ -64,7 +64,7 @@ For this study, we purchased two popular budget set-top boxes from Temu:
 
 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.5rem; margin: 1.8rem 0;">
   <figure style="margin: 0;">
-    <img src="{{ '/commons/case_study_tv_boxes_2026/wudung_whole.jpeg' | relative_url }}" alt="Wudung Android Mini TV Box" style="width: 100%; height: 260px; object-fit: cover; border-radius: 8px; border: 1px solid var(--line);">
+    <img src="{{ '/commons/case_study_tv_boxes_2026/wudung_whole.jpeg' | relative_url }}" alt="Wudung Android Mini TV Box" style="width: 100%; height: 450px; object-fit: cover; border-radius: 8px; border: 1px solid var(--line);">
     <figcaption style="font-size: 0.8rem; color: var(--muted); text-align: center; margin-top: 0.5rem; font-family: var(--mono);">Wudung Android Mini TV Box</figcaption>
   </figure>
   <figure style="margin: 0;">
@@ -86,7 +86,7 @@ Fortunately, both boards exposed unpopulated pin headers with active serial logg
 Connecting to the UART interface of the XC99 Max allowed us to interrupt the boot sequence and enter the **U-Boot** bootloader environment. As is characteristic of white-label embedded hardware, the vendor relied on an unmaintained U-Boot fork dating back to 2014.
 
 <figure style="margin: 1.8rem 0;">
-  <img src="{{ '/commons/case_study_tv_boxes_2026/XC99_open.jpeg' | relative_url }}" alt="XC99 Max mainboard opened" style="width: 100%; max-height: 420px; object-fit: cover; border-radius: 8px; border: 1px solid var(--line);">
+  <img src="{{ '/commons/case_study_tv_boxes_2026/XC99_open.jpeg' | relative_url }}" alt="XC99 Max mainboard opened" style="width: 100%; max-height: 900px; object-fit: cover; border-radius: 8px; border: 1px solid var(--line);">
   <figcaption style="font-size: 0.8rem; color: var(--muted); text-align: center; margin-top: 0.5rem; font-family: var(--mono);">XC99 Max mainboard featuring SoC, eMMC flash, UART test pads, and 100M Ethernet port</figcaption>
 </figure>
 
@@ -133,11 +133,11 @@ The Wudung Mini TV Box presented a substantially smaller form factor with fewer 
 
 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.5rem; margin: 1.8rem 0;">
   <figure style="margin: 0;">
-    <img src="{{ '/commons/case_study_tv_boxes_2026/wudung_open_top.jpeg' | relative_url }}" alt="Wudung board - top view" style="width: 100%; height: 260px; object-fit: cover; border-radius: 8px; border: 1px solid var(--line);">
+    <img src="{{ '/commons/case_study_tv_boxes_2026/wudung_open_top.jpeg' | relative_url }}" alt="Wudung board - top view" style="width: 100%; height: 400px; object-fit: cover; border-radius: 8px; border: 1px solid var(--line);">
     <figcaption style="font-size: 0.8rem; color: var(--muted); text-align: center; margin-top: 0.5rem; font-family: var(--mono);">Wudung board (top view with Wi-Fi antenna and USB)</figcaption>
   </figure>
   <figure style="margin: 0;">
-    <img src="{{ '/commons/case_study_tv_boxes_2026/wudung_open_bottom.jpeg' | relative_url }}" alt="Wudung board - bottom view" style="width: 100%; height: 260px; object-fit: cover; border-radius: 8px; border: 1px solid var(--line);">
+    <img src="{{ '/commons/case_study_tv_boxes_2026/wudung_open_bottom.jpeg' | relative_url }}" alt="Wudung board - bottom view" style="width: 100%; height: 400px; object-fit: cover; border-radius: 8px; border: 1px solid var(--line);">
     <figcaption style="font-size: 0.8rem; color: var(--muted); text-align: center; margin-top: 0.5rem; font-family: var(--mono);">Wudung board (bottom view with SoC and flash storage)</figcaption>
   </figure>
 </div>
@@ -158,22 +158,33 @@ This extraction completed in under 10 minutes—proving substantially faster, si
 
 ---
 
-## Static Analysis with FirmwareDroid
+## Static Analysis with FMD
 
-Once the raw flash images were reconstructed, we ingested both images into **FirmwareDroid** using its automated pipeline:
+Once the raw flash images were reconstructed, we ingested both images into **FMD** using its automated pipeline:
 
 ```mermaid
 flowchart LR
-    A["Raw Flash Image<br>(mmcblk0.img)"] --> B["FMD Ingestion Worker"]
-    B --> C["Partition Unpacking<br>(unblob / imgpatchtools)"]
-    C --> D["File Inventory & Hashing<br>(SHA-256 / TLSH)"]
-    D --> E["Static Analysis Triage<br>(MobSF / APKiD / AndroGuard)"]
+    A[("Raw Flash Image")]
+    B["FMD WebUI"]
+    C["Partition Unpacking"]
+    D["File Inventory"]
+    E["Static Analysis Triage<br/>(MobSF · APKiD · AndroGuard)"]
+    F(["Manual Review & Reversing"])
+
+    A --> B --> C --> D --> E --> F
+
+    style A fill:#eff6ff,stroke:#3b82f6,stroke-width:2px,color:#1e3a8a
+    style B fill:#f8fafc,stroke:#94a3b8,stroke-width:1.5px,color:#1e293b
+    style C fill:#f8fafc,stroke:#94a3b8,stroke-width:1.5px,color:#1e293b
+    style D fill:#f8fafc,stroke:#94a3b8,stroke-width:1.5px,color:#1e293b
+    style E fill:#fffbeb,stroke:#f59e0b,stroke-width:1.5px,color:#92400e
+    style F fill:#f0fdf4,stroke:#10b981,stroke-width:2px,color:#064e3b
 ```
 
 ### 1. Partition Disassembly and Inventory
-FirmwareDroid unpacked the partition table, locating the sparse `system.img` and `vendor.img` containers. Traversal of the filesystem exposed:
-- **142 pre-installed Android packages (`.apk`)** across `/system/app/` and `/system/priv-app/`.
-- **38 custom native binaries and daemons** residing under `/system/bin/` and `/vendor/bin/`.
+FMD unpacked the partition table, locating the sparse `system.img` and `vendor.img` containers. Traversal of the filesystem exposed:
+- **XX pre-installed Android packages (`.apk`)** across `/system/app/` and `/system/priv-app/`.
+- **XX custom native binaries and daemons** residing under `/system/bin/` and `/vendor/bin/`.
 
 ### 2. High-Severity Findings
 
