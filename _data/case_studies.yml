@@ -31,11 +31,11 @@
   subtitle: Towards Automated Static Analysis of Pre-Installed Android Apps
   badge: Academic Publication
   icon: fas fa-graduation-cap
-  summary: The peer-reviewed IEEE publication evaluating FirmwareDroid across diverse OEM firmware images, quantifying pre-installed apps and permission over-privileging at scale.
-  description: Published at the 10th IEEE/ACM International Conference on Mobile Software Engineering and Systems (MOBILESoft 2023), this empirical study introduced FMD's architecture and evaluated real-world vendor firmware to uncover structural variance, hidden attack surfaces, and privileged tracker ecosystems.
+  summary: The peer-reviewed IEEE publication evaluating FirmwareDroid across 5,728 Android firmware images, quantifying pre-installed apps, permissions, and tracker libraries at scale.
+  description: Published at the 10th IEEE/ACM International Conference on Mobile Software Engineering and Systems (MOBILESoft 2023), this empirical study introduced FirmwareDroid's architecture and evaluated 75,141 unique pre-installed applications across seven OS vendors.
   url: /case-studies/mobilesoft-2023/
-  tags: [Empirical Study, IEEE Conference, OEM Firmware, Over-Privileging]
+  tags: [Empirical Study, IEEE Conference, Static Analysis, Permissions, Trackers]
   date: May 2023
-  read_time: 10 min read
+  read_time: 12 min read
   published: true
   status: "Published"
