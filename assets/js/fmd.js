@@ -80,4 +80,17 @@ document.addEventListener('DOMContentLoaded', () => {
       label.textContent = 'Copy unavailable';
     }
   });
+
+  // Video chapter click handler
+  document.querySelectorAll('.chapter-link').forEach((link) => {
+    link.addEventListener('click', (e) => {
+      const start = link.dataset.start;
+      const iframe = document.querySelector('.demo-video-iframe');
+      if (iframe && start !== undefined) {
+        e.preventDefault();
+        iframe.src = `https://www.youtube.com/embed/goDt_mY6X3I?start=${start}&autoplay=1`;
+        iframe.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }
+    });
+  });
 });
