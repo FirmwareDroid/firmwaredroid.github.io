@@ -1,0 +1,53 @@
+<!-- Lightbox: click an image in the article to view it full size -->
+<style>
+  .doc-content img.lb-zoomable { cursor: zoom-in; }
+  .lb-overlay {
+    position: fixed; inset: 0; z-index: 9999;
+    display: none; align-items: center; justify-content: center;
+    background: rgba(0, 0, 0, 0.85); cursor: zoom-out; padding: 2rem;
+  }
+  .lb-overlay.open { display: flex; }
+  .lb-overlay img {
+    max-width: 100%; max-height: 100%;
+    object-fit: contain;
+    border-radius: 6px; box-shadow: 0 10px 40px rgba(0, 0, 0, .5);
+  }
+  .lb-overlay .lb-cap {
+    position: absolute; bottom: 1rem; left: 0; right: 0;
+    text-align: center; color: #e5e7eb; font-size: .85rem;
+  }
+  .lb-overlay .lb-close {
+    position: absolute; top: 1rem; right: 1.25rem;
+    color: #fff; font-size: 2rem; line-height: 1; background: none; border: 0; cursor: pointer;
+  }
+</style>
+<div class="lb-overlay" id="lb-overlay" role="dialog" aria-modal="true" aria-label="Image preview">
+  <button class="lb-close" aria-label="Close">&times;</button>
+  <img id="lb-img" alt="">
+  <div class="lb-cap" id="lb-cap"></div>
+</div>
+<script>
+  (function () {
+    var overlay = document.getElementById('lb-overlay');
+    var big = document.getElementById('lb-img');
+    var cap = document.getElementById('lb-cap');
+    document.querySelectorAll('.doc-content img').forEach(function (img) {
+      if (img.closest('a')) return;
+      img.classList.add('lb-zoomable');
+      img.addEventListener('click', function () {
+        big.src = img.currentSrc || img.src;
+        big.alt = img.alt;
+        cap.textContent = img.alt || '';
+        overlay.classList.add('open');
+        document.body.style.overflow = 'hidden';
+      });
+    });
+    function close() {
+      overlay.classList.remove('open');
+      big.removeAttribute('src');
+      document.body.style.overflow = '';
+    }
+    overlay.addEventListener('click', close);
+    document.addEventListener('keydown', function (e) { if (e.key === 'Escape') close(); });
+  })();
+</script>
